@@ -4,9 +4,11 @@ Browser only ali-oss multipart upload
 
 No IE support
 
-- [x] .put(name,file, headers)
-- [x] .multipartUpload(name,file, {headers,partSize,onProgress})
-- [x] .setOptions(sts)
+Supported
+
+- .put(name,file, headers)
+- .multipartUpload(name,file, {headers,partSize,onProgress})
+- .setOptions(sts)
 
 ## Install
 
@@ -15,7 +17,7 @@ No IE support
     npm install ali-oss-tiny
 ```
 
-## USAGE
+## How to use
 
 ```javascript
 import TinyOSS from "ali-oss-tiny";
