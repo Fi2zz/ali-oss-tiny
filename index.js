@@ -1,144 +1,33 @@
-// src/sha1.js
-function utf8ToBytes(string, units) {
-	units = units || Infinity;
-	var codePoint;
-	var length = string.length;
-	var leadSurrogate = null;
-	var bytes = [];
-	for (var i = 0; i < length; ++i) {
-		codePoint = string.charCodeAt(i);
-		if (codePoint > 55295 && codePoint < 57344) {
-			if (!leadSurrogate) {
-				if (codePoint > 56319) {
-					if ((units -= 3) > -1) bytes.push(239, 191, 189);
-					continue;
-				} else if (i + 1 === length) {
-					if ((units -= 3) > -1) bytes.push(239, 191, 189);
-					continue;
-				}
-				leadSurrogate = codePoint;
-				continue;
-			}
-			if (codePoint < 56320) {
-				if ((units -= 3) > -1) bytes.push(239, 191, 189);
-				leadSurrogate = codePoint;
-				continue;
-			}
-			codePoint =
-				(((leadSurrogate - 55296) << 10) | (codePoint - 56320)) + 65536;
-		} else if (leadSurrogate) {
-			if ((units -= 3) > -1) bytes.push(239, 191, 189);
-		}
-		leadSurrogate = null;
-		if (codePoint < 128) {
-			if ((units -= 1) < 0) break;
-			bytes.push(codePoint);
-		} else if (codePoint < 2048) {
-			if ((units -= 2) < 0) break;
-			bytes.push((codePoint >> 6) | 192, (codePoint & 63) | 128);
-		} else if (codePoint < 65536) {
-			if ((units -= 3) < 0) break;
-			bytes.push(
-				(codePoint >> 12) | 224,
-				((codePoint >> 6) & 63) | 128,
-				(codePoint & 63) | 128
-			);
-		} else if (codePoint < 1114112) {
-			if ((units -= 4) < 0) break;
-			bytes.push(
-				(codePoint >> 18) | 240,
-				((codePoint >> 12) & 63) | 128,
-				((codePoint >> 6) & 63) | 128,
-				(codePoint & 63) | 128
-			);
-		} else {
-			throw new Error("Invalid code point");
-		}
+//modified from https://github.com/feross/buffer
+function create(input, fill) {
+	//  Buffer.from
+	//  Buffer.alloc
+	//  Buffer.prototype.fill
+	let size = typeof input == "number" && !isNaN(input) ? input : 0;
+	if (size < 0) size = 0;
+	let bytes = [];
+	if (typeof input == "string") {
+		const map = (_, index) => input.charCodeAt(index) & 0xff;
+		bytes = Array.from(input, map);
+		size = bytes.length;
 	}
-	return bytes;
-}
-function base64(buffer) {
-	var lookup =
-		"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/".split(
-			""
-		);
-	function tripletToBase64(num) {
-		return (
-			lookup[(num >> 18) & 63] +
-			lookup[(num >> 12) & 63] +
-			lookup[(num >> 6) & 63] +
-			lookup[num & 63]
-		);
-	}
-	function encodeChunk(uint8, start, end) {
-		var tmp;
-		var output = [];
-		for (var i = start; i < end; i += 3) {
-			tmp =
-				((uint8[i] << 16) & 16711680) +
-				((uint8[i + 1] << 8) & 65280) +
-				(uint8[i + 2] & 255);
-			output.push(tripletToBase64(tmp));
-		}
-		return output.join("");
-	}
-	function fromByteArray(uint8) {
-		var tmp;
-		var len = uint8.length;
-		var extraBytes = len % 3;
-		var parts = [];
-		var maxChunkLength = 16383;
-		for (var i = 0, len2 = len - extraBytes; i < len2; i += maxChunkLength) {
-			parts.push(
-				encodeChunk(
-					uint8,
-					i,
-					i + maxChunkLength > len2 ? len2 : i + maxChunkLength
-				)
-			);
-		}
-		if (extraBytes === 1) {
-			tmp = uint8[len - 1];
-			parts.push(lookup[tmp >> 2] + lookup[(tmp << 4) & 63] + "==");
-		} else if (extraBytes === 2) {
-			tmp = (uint8[len - 2] << 8) + uint8[len - 1];
-			parts.push(
-				lookup[tmp >> 10] +
-					lookup[(tmp >> 4) & 63] +
-					lookup[(tmp << 2) & 63] +
-					"="
-			);
-		}
-		return parts.join("");
-	}
-	return fromByteArray(buffer).trim();
-}
-function allocUint8Array(sizeOrString, fill) {
-	if (typeof sizeOrString == "string") {
-		var stringLength = utf8ToBytes(sizeOrString).length | 0;
-		var unit8 = new Uint8Array(stringLength);
+	var unit8 = new Uint8Array(size | 0);
+	if (typeof fill == "undefined") {
 		var length = unit8.length;
 		var offset = 0;
 		var remaining = unit8.length - offset;
 		if (length > remaining) length = remaining;
-		const bytes = utf8ToBytes(sizeOrString, unit8.length - offset);
 		for (var i = 0; i < length; ++i) {
 			if (i + offset >= unit8.length || i >= bytes.length) break;
 			unit8[i + offset] = bytes[i];
 		}
 		return unit8;
 	}
-	var unit8 = new Uint8Array(sizeOrString);
-	if (sizeOrString > 0 && fill !== void 0) {
-		fill = (fill & 255) | 0;
-		for (var i = 0; i < unit8.length; ++i) {
-			unit8[i] = fill;
-		}
-	}
+	if (size > 0) unit8.fill((fill & 255) | 0);
 	return unit8;
 }
-function concatUint8Arrays(unit8s, length) {
-	var unit8 = new Uint8Array(length < 0 ? 0 : length | 0);
+function concat(unit8s, length) {
+	var unit8 = create(length);
 	var offset = 0;
 	for (var i = 0; i < unit8s.length; ++i) {
 		var item = unit8s[i];
@@ -151,11 +40,12 @@ function concatUint8Arrays(unit8s, length) {
 	}
 	return unit8;
 }
+//modified from https://github.com/crypto-browserify/sha.js/blob/master/sha1.js
 function sha1(key, data) {
-	key = allocUint8Array(key);
-	data = allocUint8Array(data);
+	key = create(key);
+	data = create(data);
 	const blocksize = 64;
-	var zeroBuffer = allocUint8Array(blocksize, 0);
+	var zeroBuffer = create(blocksize, 0);
 	function core_sha1(x, len) {
 		x[len >> 5] |= 128 << (24 - (len % 32));
 		x[(((len + 64) >> 9) << 4) + 15] = len;
@@ -222,7 +112,7 @@ function sha1(key, data) {
 		function toArray(buf2) {
 			if (buf2.length % intSize !== 0) {
 				const length = buf2.length + (intSize - (buf2.length % intSize));
-				buf2 = concatUint8Arrays([buf2, allocUint8Array(intSize, 0)], length);
+				buf2 = concat([buf2, create(intSize, 0)], length);
 			}
 			var arr2 = [];
 			for (var offset2 = 0; offset2 < buf2.length; offset2 += intSize) {
@@ -236,7 +126,7 @@ function sha1(key, data) {
 			return arr2;
 		}
 		var arr = core_sha1(toArray(buf), buf.length * chrsz);
-		var next = allocUint8Array(hashSize);
+		var next = create(hashSize);
 		for (var index = 0; index < arr.length; index++) {
 			var value = arr[index];
 			var offset = index * 4;
@@ -249,36 +139,35 @@ function sha1(key, data) {
 		}
 		return next;
 	}
-	data = concatUint8Arrays([data], data.length);
+	data = concat([data], data.length);
 	if (key.length > blocksize) {
 		key = sha12(key);
 	} else if (key.length < blocksize) {
-		key = concatUint8Arrays([key, zeroBuffer], blocksize);
+		key = concat([key, zeroBuffer], blocksize);
 	}
-	var ipad = allocUint8Array(blocksize),
-		opad = allocUint8Array(blocksize);
+	var ipad = create(blocksize),
+		opad = create(blocksize);
 	for (var i = 0; i < blocksize; i++) {
 		ipad[i] = key[i] ^ 54;
 		opad[i] = key[i] ^ 92;
 	}
 	const size1 = ipad.length + data.length;
-	const hash = sha12(concatUint8Arrays([ipad, data], size1));
+	const hash = sha12(concat([ipad, data], size1));
 	const size2 = ipad.length + hash.length;
-	const result = sha12(concatUint8Arrays([opad, hash], size2));
-	return base64(result);
+	const result = sha12(concat([opad, hash], size2));
+	//  bytes to base64
+	const output = [];
+	for (let i = 0; i < result.length; i++)
+		output.push(String.fromCharCode(result[i]));
+	return btoa(output.join(""));
 }
-
-// src/index.js
-function parseXML(xml) {
-	if (xml instanceof XMLDocument) return xml;
-	return new DOMParser().parseFromString(xml, "text/xml");
-}
-function getXMLContent(xml, tagName) {
+function parseXML(xml, tagName) {
+	if (!xml) return "";
 	const tag = xml.querySelector(tagName);
 	if (!tag) return "";
 	return tag.textContent;
 }
-function getRequestTime(input) {
+function getOSSDate(input) {
 	input = new Date();
 	const pad = (val) => (val > 9 ? `${val}` : `0${val}`);
 	const dNames = "Sun_Mon_Tue_Wed_Thu_Fri_Sat";
@@ -299,6 +188,19 @@ function getRequestTime(input) {
 	};
 	return `${flags.ddd}, ${flags.dd} ${flags.mmm} ${flags.yyyy} ${flags.HH}:${flags.MM}:${flags.ss} GMT`;
 }
+
+function getOSSHeaders(headers2) {
+	const OSS_RE = /^(x-oss-)/i;
+	return Object.entries(headers2)
+		.map(([key, value]) => {
+			if (!OSS_RE.test(key) || !value) return null;
+			key = key.toLowerCase();
+			return `${key}:${value.trim()}`;
+		})
+		.filter(Boolean)
+		.sort()
+		.join("\n");
+}
 function request(method, options, body) {
 	const _pathname = [options.bucket, options.object].filter(Boolean).join("/");
 	const search = new URLSearchParams(options.subres || {});
@@ -308,79 +210,25 @@ function request(method, options, body) {
 	const pathname = encodeURIComponent(options.object)
 		.replace(/%2F/g, "/")
 		.replace(/\+/g, "%2B");
-	let signature = "";
-	{
-		let getOSSHeaders = function (headers2) {
-			const OSS_RE = /^(x-oss-)/i;
-			return Object.entries(headers2)
-				.map(([key, value]) => {
-					if (!OSS_RE.test(key) || !value) return null;
-					key = key.toLowerCase();
-					return `${key}:${value.trim()}`;
-				})
-				.filter(Boolean)
-				.sort()
-				.join("\n");
-		};
-		const stringToSign = [
-			method,
-			"",
-			options.headers["Content-Type"],
-			options.headers["x-oss-date"],
-			getOSSHeaders(options.headers),
-			`${resource}`.replace(resource.protocol, "").replace(/\=$/, "").trim(),
-		].join("\n");
-		signature = sha1(options.accessKeySecret, stringToSign);
-	}
+	const stringToSign = [
+		method,
+		"",
+		options.headers["Content-Type"],
+		options.headers["x-oss-date"],
+		getOSSHeaders(options.headers),
+		`${resource}`.replace(resource.protocol, "").replace(/\=$/, "").trim(),
+	].join("\n");
+
+	const signature = sha1(options.accessKeySecret, stringToSign);
 	const authorization = `OSS ${options.accessKeyId}:${signature}`;
 	const url = new URL(`${protocol}${host}${pathname}?${search}`);
 	const headers = options.headers;
 	const timeout = options.timeout;
-	return new Promise((resolve, reject) => {
+	return new Promise((resolve) => {
 		const xhr = new XMLHttpRequest();
-		function withTypeError(message) {
-			let error = null;
-			if (xhr.status < 200 || xhr.status >= 300) {
-				var text = xhr.statusText || message;
-				const status = xhr.status;
-				if (xhr.responseXML) {
-					const xml = parseXML(xhr.responseXML);
-					const code = getXMLContent(xml, "Code");
-					const message2 = getXMLContent(xml, "Message");
-					const requestId = getXMLContent(xml, "RequestId");
-					const hostId = getXMLContent(xml, "HostId");
-					text = [
-						`Status:${status}`,
-						`Code:${code}`,
-						`Message:${message2}`,
-						`RequestId:${requestId}`,
-						`HostId:${hostId}`,
-					].join("\n\n");
-				}
-				return reject(new Error(text));
-			}
-			const response = {
-				status: xhr.status,
-				statusText: xhr.statusText,
-				url: xhr.responseURL,
-				ok: xhr.statusText == "OK",
-				type: xhr.responseType || "default",
-			};
-			response.headers = {
-				"x-oss-request-id": xhr.getResponseHeader("x-oss-request-id"),
-				etag: JSON.parse(xhr.getResponseHeader("etag")),
-			};
-			response.method = method;
-			response.ok = !error;
-			response.data =
-				xhr.responseXML || xhr.response || xhr.responseText || xhr.responseURL;
-			response.bucket = options.bucket;
-			response.key = resource.pathname.replace(`/${options.bucket}/`, "");
-			return resolve(response);
-		}
-		xhr.onload = () => withTypeError();
-		xhr.onerror = () => withTypeError("Request Failed");
-		xhr.ontimeout = () => withTypeError("Request Timeout");
+		xhr.onload = () => resolve(xhr);
+		xhr.onerror = () => resolve(xhr);
+		xhr.ontimeout = () => resolve(xhr);
 		xhr.open(method, String(url), true);
 		xhr.timeout = timeout;
 		for (let name in headers) {
@@ -391,14 +239,13 @@ function request(method, options, body) {
 		xhr.send(body || null);
 	});
 }
-var post = (...args) => request("POST", ...args);
-var put = (...args) => request("PUT", ...args);
-function getParts(file) {
+function getParts(file, partSize) {
 	const fileSize = file.size;
 	const minPartSize = 100 * 1024;
 	if (!fileSize >= minPartSize) return { size: 1, slice: [] };
+	partSize = partSize || 1 * 1024 * 1024;
 	const max = 10 * 1e3;
-	var partSize = 1 * 1024 * 1024;
+	const size = Math.ceil(fileSize / partSize);
 	const safeSize = Math.ceil(fileSize / max);
 	if (partSize < safeSize) {
 		partSize = safeSize;
@@ -406,7 +253,6 @@ function getParts(file) {
 			`partSize has been set to ${partSize}, because the partSize you provided causes partNumber to be greater than ${max}`
 		);
 	}
-	const size = Math.ceil(fileSize / partSize);
 	const slice = [];
 	for (let i = 0; i < size; i++) {
 		const start = partSize * i;
@@ -418,124 +264,157 @@ function getParts(file) {
 	}
 	return { slice, size };
 }
-async function buildResult(upload) {
-	const result = await upload();
-	let url;
-	let bucket = result.bucket;
-	let etag = result.headers.etag;
-	let key = result.key;
-	if (result.data instanceof XMLDocument) {
-		const xml = parseXML(result.data);
-		url = getXMLContent(xml, "Location");
-	} else {
-		url = new URL(result.data);
-		url.search = "";
+
+async function namedRequest(method, options, body) {
+	const xhr = await request(method, options, body);
+	if (xhr.status < 200 || xhr.status >= 300) {
+		var text = xhr.statusText;
+		const status = xhr.status;
+		if (xhr.responseXML) {
+			const xml = xhr.responseXML;
+			const code = parseXML(xml, "Code");
+			const message2 = parseXML(xml, "Message");
+			const requestId = parseXML(xml, "RequestId");
+			const hostId = parseXML(xml, "HostId");
+			text = [
+				`Status:${status}`,
+				`Code:${code}`,
+				`Message:${message2}`,
+				`RequestId:${requestId}`,
+				`HostId:${hostId}`,
+			].join("\n\n");
+		}
+		throw new Error(text);
 	}
-	return {
-		url: `${url}`,
-		headers: result.headers,
-		bucket,
-		etag,
-		key,
+	/* InitiateMultipartUploadResult XML
+	<?xml version="1.0" encoding="UTF-8"?>
+	<InitiateMultipartUploadResult>
+		<Bucket>{Bucket}</Bucket>
+		<Key>{Key}</Key>
+		<UploadId>{UploadId}</UploadId>
+	</InitiateMultipartUploadResult>
+	*/
+	// CompleteMultipartUploadResult XML
+	/**
+	<?xml version="1.0" encoding="UTF-8"?>
+	<CompleteMultipartUploadResult>
+		<Location>{Location}</Location>
+  		<Bucket>{Bucket}</Bucket>
+ 		<Key>{Key}</Key>
+ 		<ETag>{ETag}</ETag>
+	</CompleteMultipartUploadResult>
+	 */
+	const url = new URL(xhr.responseURL);
+	const uploadId =
+		url.searchParams.get("uploadId") || parseXML(xhr.responseXML, "UploadId");
+	const result = {
+		headers: xhr.getAllResponseHeaders(),
+		etag: JSON.parse(xhr.getResponseHeader("etag")),
+		status: xhr.status,
+		name: options.object,
+		url: url.toString(),
 	};
+	if (uploadId) result.uploadId = uploadId;
+	return result;
 }
-function tinyOSS() {
-	let options = {
-		region: "oss-cn-hangzhou",
-		internal: false,
-		secure: false,
-		timeout: 6e4,
-		bucket: null,
+async function completeMultipartUpload(options, uploadId, jobs) {
+	const completeOption = {
+		...options,
+		subres: { uploadId },
 	};
-	const version = "2022.04.1";
-	const userAgent = `aliyun-sdk-js/${version}/` + navigator.userAgent;
-	function setOptions(opts) {
-		options = Object.assign(
-			options,
+	completeOption.headers["Content-Type"] = "application/xml";
+	const xml = buildCompleteMultipartUploadXML(jobs);
+	return await namedRequest("POST", completeOption, xml);
+}
+class TinyOSS {
+	constructor(options) {
+		this.options = {};
+		if (options) this.setOptions(options);
+		this.upload = this.multipartUpload.bind(this);
+	}
+	async put(name, file, headers = {}) {
+		const options = this.getOptions(name, file);
+		options.headers = { ...options.headers, ...headers };
+		return await namedRequest("PUT", options, file);
+	}
+	async multipartUpload(name, file, { partSize, headers } = {}) {
+		const { size, slice } = getParts(file, partSize);
+		if (size == 1) return await this.put(name, file, headers);
+		const options = this.getOptions(name, file, headers);
+		//  get UploadId
+		const { uploadId } = await namedRequest("POST", options);
+		const done = await Promise.all(
+			Array.from({ length: size }, async (_, index) => {
+				const partNumber = index + 1;
+				try {
+					const part = slice[partNumber - 1];
+					const subres = {
+						partNumber,
+						uploadId,
+					};
+					const body = file.slice(part.start, part.end);
+					const partOptions = { ...options, subres };
+					const { etag } = await namedRequest("PUT", partOptions, body);
+					return { partNumber, etag };
+				} catch (error) {
+					const message = [`Failed to upload part${partNumber}`, error.message];
+					error.message = message.join("\n\n");
+					throw error;
+				}
+			})
+		);
+		return await completeMultipartUpload(options, uploadId, done);
+	}
+	getOptions(name, file) {
+		const version = "2022.04.1";
+		const userAgent = `aliyun-sdk-js/${version}/` + navigator.userAgent;
+		return {
+			...this.options,
+			object: name.replace(/^\/+/, ""),
+			subres: { uploads: "" },
+			headers: {
+				"Content-Type": file.type,
+				"x-oss-date": getOSSDate(),
+				"x-oss-security-token": this.options.stsToken,
+				"x-oss-user-agent": userAgent,
+			},
+		};
+	}
+	setOptions(opts) {
+		this.options = Object.assign(
 			{
-				endpoint: new URL("https://" + opts.region + ".aliyuncs.com"),
+				region: "oss-cn-hangzhou",
+				internal: false,
+				secure: false,
+				timeout: 6e4,
+				bucket: null,
+				endpoint: new URL(
+					"https://" + opts.region + ".aliyuncs.com"
+				).toString(),
 				accessKeyId: opts.accessKeyId.trim(),
 				accessKeySecret: opts.accessKeySecret.trim(),
 			},
 			opts
 		);
 	}
-	async function upload(osskey, file) {
-		const ossdate = getRequestTime();
-		const mergeOption = (contentType, subres) => ({
-			...options,
-			subres: subres || { uploads: "" },
-			headers: {
-				"Content-Type": contentType || file.type,
-				"x-oss-date": ossdate,
-				"x-oss-security-token": options.stsToken,
-				"x-oss-user-agent": userAgent,
-			},
-			object: osskey.replace(/^\/+/, ""),
-		});
-		const { size, slice } = getParts(file);
-		if (size == 1) return await buildResult(() => put(mergeOption(), file));
-		const prepare = {
-			uploadId: null,
-			done: [],
-			key: null,
-		};
-		{
-			const result = await post(mergeOption(), null, true);
-			const xml = parseXML(result.data);
-			prepare.key = getXMLContent(xml, "Key");
-			prepare.uploadId = getXMLContent(xml, "UploadId");
-			const all = Array.from(new Array(size), (_, index) => index + 1);
-			await Promise.all(
-				all.map(async (partNumber) => {
-					try {
-						const part = slice[partNumber - 1];
-						const subres = {
-							partNumber,
-							uploadId: prepare.uploadId,
-						};
-						const body = file.slice(part.start, part.end);
-						const options2 = mergeOption();
-						options2.subres = subres;
-						const { headers } = await put(options2, body);
-						prepare.done.push({
-							number: partNumber,
-							etag: headers.etag,
-							uploadId: prepare.uploadId,
-						});
-					} catch (error) {
-						const message = [
-							`Failed to upload part${partNumber}`,
-							error.message,
-						];
-						error.message = message.join("\n\n");
-						throw error;
-					}
-				})
-			);
-		}
-		{
-			const completeOption = mergeOption("application/xml", {
-				uploadId: prepare.uploadId,
-			});
-			const part = ({ number, etag }) => {
-				return `<Part>
-				<PartNumber>${number}</PartNumber>
-				<ETag>${etag}</ETag>
-			</Part>`
-					.replace(/\s+/g, "")
-					.trim();
-			};
-			const nodes = prepare.done.sort((a, b) => a.number - b.number).map(part);
-			const xmltext = [
-				`<?xml version="1.0" encoding="UTF-8"?>`,
-				`<CompleteMultipartUpload>`,
-				...nodes,
-				`</CompleteMultipartUpload>`,
-			].join("\n");
-			return await buildResult(() => post(completeOption, xmltext, true));
-		}
-	}
-	return { setOptions, upload };
 }
-export { tinyOSS as default };
+
+function buildCompleteMultipartUploadXML(result) {
+	const xml = result
+		.sort((a, b) => a.partNumber - b.partNumber)
+		.map(buildPartXML);
+	xml.unshift(`<?xml version="1.0" encoding="UTF-8"?>`);
+	xml.unshift(`<CompleteMultipartUpload>`);
+	xml.push(`</CompleteMultipartUpload>`);
+	return xml.join("\n");
+	function buildPartXML({ partNumber, etag }) {
+		let xml = "<Part>";
+		xml += "<PartNumber>" + partNumber + "</PartNumber>";
+		xml += "\n";
+		xml += "<ETag>" + etag + "</ETag>";
+		xml += "\n";
+		xml += "</Part>";
+		return xml;
+	}
+}
+export { TinyOSS as default };

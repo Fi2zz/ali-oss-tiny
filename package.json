@@ -1,6 +1,7 @@
 {
-  "name": "ali-oss-tiny",
-  "version": "1.0.0",
-  "main": "index.js",
-  "license": "MIT"
+	"name": "ali-oss-tiny",
+	"version": "1.0.1",
+	"main": "index.js",
+	"license": "MIT",
+	"type": "module"
 }

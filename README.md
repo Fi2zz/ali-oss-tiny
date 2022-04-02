@@ -1,6 +1,12 @@
 # Ali-OSS-tiny
 
-browser only ali-oss multipart upload
+Browser only ali-oss multipart upload
+
+No IE support
+
+- [x] .put(name,file, headers)
+- [x] .multipartUpload(name,file, {headers,partSize})
+- [x] .setOptions(sts)
 
 ## Install
 
@@ -12,33 +18,38 @@ browser only ali-oss multipart upload
 ## USAGE
 
 ```javascript
-import aliOSSTiny from "ali-oss-tiny";
-const oss = aliOSSTiny();
+import TinyOSS from "ali-oss-tiny";
 const sts = {
 	region,
 	accessKeyId,
 	accessKeySecret,
 	stsToken,
 	bucket,
-	secure: true,
+	secure,
 	endpoint,
 };
-oss.setOptions(sts);
-document.querySelector("#file").onchange = async (event) => {
-	const file = event.target.files[0];
-	try {
-		const result = await oss.upload(file.name, file);
-		console.log(result);
+const oss = new TinyOSS(sts);
+// or
+// oss.setOptions(sts)
+//  oss.multipartUpload(name,file, {headers?, partSize?})
+const multipartResult = await oss.multipartUpload(file.name, file);
+console.log(multipartUploadResult);
 		//  {
 		// 	url: "the url",
-		// 	headers: {
-		// 		"x-oss-request-id": "oss request id",
-		// 		etag: "etag",
-		// 	},
-		// 	bucket: "your bucket",
+		// 	headers:string,
 		// 	etag: "etag",
-		// 	key: "key",
+		// 	name: "key",
+		// 	status
 		// }
-	} catch (error) {}
+// oss.put(name,file, headers?)
+const putResult = await oss.put(file.name, file, headers);
+console.log(putResult);
+		//  {
+		// 	url: "the url",
+		// 	headers:string,
+		// 	etag: "etag",
+		// 	name: "key",
+		// 	status
+		// }
 };
 ```
