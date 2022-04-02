@@ -1,7 +1,12 @@
 {
 	"name": "ali-oss-tiny",
 	"version": "1.0.1",
+	"description": "tiny ali-oss",
 	"main": "index.js",
 	"license": "MIT",
-	"type": "module"
+	"type": "module",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/Fi2zz/ali-oss-tiny.git"
+	}
 }

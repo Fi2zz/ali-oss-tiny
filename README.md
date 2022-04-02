@@ -5,7 +5,7 @@ Browser only ali-oss multipart upload
 No IE support
 
 - [x] .put(name,file, headers)
-- [x] .multipartUpload(name,file, {headers,partSize})
+- [x] .multipartUpload(name,file, {headers,partSize,onProgress})
 - [x] .setOptions(sts)
 
 ## Install

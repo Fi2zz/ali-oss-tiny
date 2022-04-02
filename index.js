@@ -314,38 +314,41 @@ export default class TinyOSS {
 		if (options) this.setOptions(options);
 		this.upload = this.multipartUpload.bind(this);
 	}
-	async put(name, file, headers = {}) {
+	async put(name, file, headers) {
 		const options = this.getOptions(name, file);
 		options.headers = { ...options.headers, ...headers };
 		return await namedRequest("PUT", options, file);
 	}
-	async multipartUpload(name, file, { partSize, headers } = {}) {
+	async multipartUpload(name, file, { partSize, headers, onProgress } = {}) {
 		const { size, slice } = getParts(file, partSize);
-		if (size == 1) return await this.put(name, file, headers);
+		const progress = (progress) => onProgress?.(progress);
+		if (size == 1) {
+			progress(0);
+			const result = await this.put(name, file, headers);
+			progress(1);
+			return result;
+		}
 		const options = this.getOptions(name, file, headers);
 		//  get UploadId
 		const { uploadId } = await namedRequest("POST", options);
-		const done = await Promise.all(
+		const jobs = await Promise.all(
 			Array.from({ length: size }, async (_, index) => {
 				const partNumber = index + 1;
-				try {
-					const part = slice[partNumber - 1];
-					const subres = {
-						partNumber,
-						uploadId,
-					};
-					const body = file.slice(part.start, part.end);
-					const partOptions = { ...options, subres };
-					const { etag } = await namedRequest("PUT", partOptions, body);
-					return { partNumber, etag };
-				} catch (error) {
-					const message = [`Failed to upload part${partNumber}`, error.message];
-					error.message = message.join("\n\n");
-					throw error;
-				}
+				const part = slice[partNumber - 1];
+				const subres = {
+					partNumber,
+					uploadId,
+				};
+				const body = file.slice(part.start, part.end);
+				const partOptions = { ...options, subres };
+				const { etag } = await namedRequest("PUT", partOptions, body);
+				progress(index / size, { uploadId, partNumber, etag });
+				return { partNumber, etag };
 			})
 		);
-		return await completeMultipartUpload(options, uploadId, done);
+		const compelte = await completeMultipartUpload(options, uploadId, jobs);
+		progress(1);
+		return compelte;
 	}
 	getOptions(name, file) {
 		const version = "2022.04.1";
