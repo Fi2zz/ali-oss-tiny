@@ -387,8 +387,8 @@ function buildCompleteMultipartUploadXML(result) {
 	const xml = result
 		.sort((a, b) => a.partNumber - b.partNumber)
 		.map(buildPartXML);
-	xml.unshift(`<?xml version="1.0" encoding="UTF-8"?>`);
 	xml.unshift(`<CompleteMultipartUpload>`);
+	xml.unshift(`<?xml version="1.0" encoding="UTF-8"?>`);
 	xml.push(`</CompleteMultipartUpload>`);
 	return xml.join("\n");
 	function buildPartXML({ partNumber, etag }) {
