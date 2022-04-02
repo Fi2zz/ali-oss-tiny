@@ -286,24 +286,6 @@ async function namedRequest(method, options, body) {
 		}
 		throw new Error(text);
 	}
-	/* InitiateMultipartUploadResult XML
-	<?xml version="1.0" encoding="UTF-8"?>
-	<InitiateMultipartUploadResult>
-		<Bucket>{Bucket}</Bucket>
-		<Key>{Key}</Key>
-		<UploadId>{UploadId}</UploadId>
-	</InitiateMultipartUploadResult>
-	*/
-	// CompleteMultipartUploadResult XML
-	/**
-	<?xml version="1.0" encoding="UTF-8"?>
-	<CompleteMultipartUploadResult>
-		<Location>{Location}</Location>
-  		<Bucket>{Bucket}</Bucket>
- 		<Key>{Key}</Key>
- 		<ETag>{ETag}</ETag>
-	</CompleteMultipartUploadResult>
-	 */
 	const url = new URL(xhr.responseURL);
 	const uploadId =
 		url.searchParams.get("uploadId") || parseXML(xhr.responseXML, "UploadId");
@@ -326,7 +308,7 @@ async function completeMultipartUpload(options, uploadId, jobs) {
 	const xml = buildCompleteMultipartUploadXML(jobs);
 	return await namedRequest("POST", completeOption, xml);
 }
-class TinyOSS {
+export default class TinyOSS {
 	constructor(options) {
 		this.options = {};
 		if (options) this.setOptions(options);
@@ -398,7 +380,6 @@ class TinyOSS {
 		);
 	}
 }
-
 function buildCompleteMultipartUploadXML(result) {
 	const xml = result
 		.sort((a, b) => a.partNumber - b.partNumber)
@@ -417,4 +398,3 @@ function buildCompleteMultipartUploadXML(result) {
 		return xml;
 	}
 }
-export { TinyOSS as default };
